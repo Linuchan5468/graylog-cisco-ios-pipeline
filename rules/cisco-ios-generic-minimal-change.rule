@@ -1,0 +1,39 @@
+rule "cisco ios generic syslog parse"
+when
+  has_field("message") &&
+  regex(
+    pattern: "^(?:<\\d+>)?[A-Z][a-z]{2}\\s+\\d{1,2}\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\.\\d{3}\\s+[A-Z]+:\\s+%[A-Z0-9_]+-[0-7]-[A-Z0-9_]+:",
+    value: to_string($message.message)
+  ).matches == true
+then
+  let parsed = grok(
+    pattern: "^(?:<%{NONNEGINT:syslog_pri}>)?%{MONTH:cisco_month}\\s+%{MONTHDAY:cisco_day}\\s+%{YEAR:cisco_year}\\s+%{TIME:cisco_time}\\s+%{WORD:cisco_timezone}:\\s+%{NOTSPACE:cisco_type_raw}:\\s+%{GREEDYDATA:cisco_message}$",
+    value: to_string($message.message),
+    only_named_captures: true
+  );
+
+  set_fields(parsed);
+
+  let cisco_type_clean = regex_replace(
+    pattern: "^%",
+    value: to_string(parsed.cisco_type_raw),
+    replacement: ""
+  );
+
+  set_field("cisco_type", cisco_type_clean);
+
+  let type_parts = grok(
+    pattern: "^%{WORD:cisco_facility}-%{INT:cisco_severity}-%{WORD:cisco_mnemonic}$",
+    value: cisco_type_clean,
+    only_named_captures: true
+  );
+
+  set_fields(type_parts);
+  set_field("cisco_severity", to_long(type_parts.cisco_severity));
+
+  // Graylog 7.x replacement for deprecated remove_field().
+  remove_single_field("cisco_type_raw");
+
+  set_field("parser_name", "cisco_ios_generic");
+  set_field("parser_status", "parsed");
+end
