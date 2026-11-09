@@ -1,0 +1,39 @@
+rule "cisco ios generic syslog parse"
+when
+  has_field("message") &&
+  regex(
+    pattern: "^(?:<\\d{1,3}>)?[*.]?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\s+\\d{1,2}\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?\\s+[A-Z][A-Z0-9_+\\-/]*:\\s+%[A-Z0-9_]+-[0-7]-[A-Z0-9_]+:\\s*.*$",
+    value: to_string($message.message)
+  ).matches == true
+then
+  // Parse the Cisco IOS timestamp, timezone, message identifier and payload.
+  let parsed = grok(
+    pattern: "^(?:<%{NONNEGINT:syslog_pri}>)?[*.]?%{MONTH:cisco_month}\\s+%{MONTHDAY:cisco_day}\\s+%{YEAR:cisco_year}\\s+%{TIME:cisco_time}\\s+%{NOTSPACE:cisco_timezone}:\\s+%{NOTSPACE:cisco_type}:\\s+%{GREEDYDATA:cisco_message}$",
+    value: to_string($message.message),
+    only_named_captures: true
+  );
+
+  // cisco_type is initially captured as "%FACILITY-SEVERITY-MNEMONIC".
+  // Store the normalized form without the leading percent sign.
+  let cisco_type_clean = regex_replace(
+    pattern: "^%",
+    value: to_string(parsed.cisco_type),
+    replacement: ""
+  );
+
+  let type_parts = grok(
+    pattern: "^%{WORD:cisco_facility}-%{INT:cisco_severity}-%{WORD:cisco_mnemonic}$",
+    value: cisco_type_clean,
+    only_named_captures: true
+  );
+
+  set_fields(parsed);
+  set_field("cisco_type", cisco_type_clean);
+  set_fields(type_parts);
+
+  // Store severity as a numeric field for range queries and aggregations.
+  set_field("cisco_severity", to_long(type_parts.cisco_severity));
+
+  set_field("parser_name", "cisco_ios_generic");
+  set_field("parser_status", "parsed");
+end
