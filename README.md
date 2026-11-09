@@ -18,22 +18,12 @@ Cisco IOS 계열 syslog 메시지에서 타임스탬프, 타임존, facility, se
   - 권장 버전
   - 임시 메시지 필드를 만들지 않으므로 필드 삭제 함수가 필요하지 않음
   - 선택적 PRI, `*`/`.` 타임스탬프 플래그, 선택적 소수점 이하 초를 허용
-- `rules/cisco-ios-generic-minimal-change.rule`
-  - 기존 규칙을 최대한 유지한 마이그레이션 버전
-  - deprecated `remove_field()`를 `remove_single_field()`로 교체
 - `samples/cisco-ios-syslog.txt`
   - Rule Simulation용 예제 메시지
 
 ## Deprecated 함수 처리
 
 Graylog 최신 함수 레퍼런스에서는 단일 필드 삭제에 `remove_single_field()`를 사용하고, 정규식 또는 목록 기반 다중 삭제에는 `remove_multiple_fields()`를 사용합니다.
-
-기존 코드의 최소 변경은 다음과 같습니다.
-
-```diff
-- remove_field("cisco_type_raw");
-+ remove_single_field("cisco_type_raw");
-```
 
 권장 규칙은 `cisco_type_raw`를 메시지 필드로 저장하지 않고 로컬 변수에서 처리하므로 삭제 호출 자체를 제거했습니다.
 
