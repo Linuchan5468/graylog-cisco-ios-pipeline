@@ -62,5 +62,25 @@ Graylog 최신 함수 레퍼런스에서는 단일 필드 삭제에 `remove_sing
 
 - 이 규칙은 연도와 타임존이 포함된 Cisco IOS 형식을 대상으로 합니다.
 - RFC 5424 형식, 연도가 없는 기본 IOS 타임스탬프, sequence number가 앞에 붙는 형식은 별도 패턴이 필요합니다.
+- 기준이 되는 Cisco 장비 측 timestamp 및 로그 설정은 아래와 같습니다.
+```code
+### 로깅 timestamps 설정 ###
+service timestamps debug datetime msec localtime show-timezone year
+service timestamps log datetime msec localtime show-timezone year
+
+### 명령어 수행 로그 로깅 ###
+archive
+ log config
+  logging enable
+  notify syslog contenttype plaintext
+  hidekeys
+
+### 로그인 성공, 실패 로깅 ###
+login on-failure log
+login on-success log
+
+### syslog 전송시 source 필드 HOSTNAME으로 지정 ###
+logging origin-id hostname
+```
 - 규칙은 Graylog의 기본 `timestamp` 필드를 변경하지 않습니다.
 - 기존 인덱스에서 `cisco_severity`가 문자열로 매핑된 상태라면 long 값과 매핑 충돌이 발생할 수 있습니다. 새 인덱스 세트 사용 또는 인덱스 로테이션 후 적용을 검토하십시오.
